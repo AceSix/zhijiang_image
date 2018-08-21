@@ -60,10 +60,9 @@ def get_batch(image,label,image_size,batch_size):
     #jpeg或者jpg格式都用decode_jpeg函数，其他格式可以去查看官方文档
     image = tf.image.decode_jpeg(image_contents,channels=3)
     image = tf.image.resize_image_with_crop_or_pad(image,image_size,image_size)
-    #image=tf.image.resize_images(image, (image_size, image_size), method=1)
 
     #对resize后的图片进行标准化处理
-    #image = tf.image.per_image_standardization(image)
+    image = tf.image.per_image_standardization(image)
 
     image_batch,label_batch = tf.train.batch([image,label],batch_size = batch_size,num_threads=8,capacity = 3*batch_size)
     label_batch = tf.reshape(label_batch, [batch_size,30])

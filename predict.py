@@ -1,48 +1,55 @@
 import tensorflow as tf
-import cv2
 import os
-import matplotlib.pyplot as plt
 import numpy as np
+import config as cfg
+import cv2
+from timer import Timer
+import datetime
+
 
 # 加载模型
 
 saver = tf.train.import_meta_graph("logs/model/model.ckpt-200.meta")
 sess = tf.Session()
 saver.restore(sess, "logs/model/model.ckpt-200")
-image_size=200
+
 graph=tf.get_default_graph()
 input_x=graph.get_tensor_by_name("input:0")
 keep_prob=graph.get_tensor_by_name("keep_prob:0")
-score=graph.get_tensor_by_name("fc3/fc3:0")
-softmax=graph.get_tensor_by_name("softmax:0")
-output=graph.get_tensor_by_name("output:0")
+output=graph.get_tensor_by_name("score/BiasAdd:0")
 
 def predict(image,sess):
-    global softmax
-    #image=cv2.imread(image)
+    global output
+    image=cv2.imread(image)
     image = image[:, :, (2, 1, 0)]
-    image=cv2.resize(image, (image_size, image_size), interpolation=cv2.INTER_CUBIC)
-    image=np.reshape(image,[-1,image_size,image_size,3])
-    out_score=sess.run(softmax,feed_dict={input_x:image,keep_prob:1})
-    print(out_score)
-    return out_score
-#predict("data/wrong_92.jpeg",sess)
-#predict("data/right_1.jpeg",sess)
+    image=cv2.resize(image, (cfg.IMAGE_SIZE, cfg.IMAGE_SIZE), interpolation=cv2.INTER_CUBIC)
+    image=np.reshape(image,[-1,cfg.IMAGE_SIZE,cfg.IMAGE_SIZE,3])
 
-from PIL import Image, ImageTk
-import cv2
-import time
-cap = cv2.VideoCapture(0)
-cap.set(cv2.CAP_PROP_FRAME_WIDTH,320)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT,240)
-t_start = time.time()
-fps = 0
-while cap.isOpened():
-    ret, frame = cap.read()
-    fps = fps + 1
-    sfps = fps / ( time.time() - t_start )
-    cv2.putText(frame, "FPS : " + str( int( sfps ) ), ( 10, 10 ), cv2.FONT_HERSHEY_SIMPLEX, 0.5, ( 0, 0, 0 ), 2 )
-    out_score=predict(frame,sess)
-    cv2.putText(frame, "score: " + str(out_score), ( 200, 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, ( 0, 0, 0 ), 2 )
-    cv2.imshow('frame',frame)
-    cv2.waitKey(1000)
+    score=sess.run(output,feed_dict={input_x:image,keep_prob:1})
+    return score
+timer=Timer()
+test_txt=os.path.join(cfg.TEST_PATH,"DatasetA_test","image.txt")
+submit_txt=os.path.join(cfg.TEST_PATH,"DatasetA_test","submit.txt")
+with open(test_txt,'r') as f:
+    images=f.readlines()
+    #print("测试集数量：",len(f.readlines()))
+    for i in range(len(images)):
+        timer.tic()
+        x=images[i]
+        num=len(images)
+        image_path=os.path.join(cfg.TEST_PATH,"DatasetA_test","test",x.strip())
+        score=predict(image_path,sess)
+        score_index=np.argmax(np.matmul(cfg.ATTRIBUTES,score.T),axis=0) #batch_size
+        y=cfg.CLASSES[score_index[0]]
+        print(y)
+        with open(submit_txt,'a') as f:
+            f.write(x.strip()+"\t"+y+"\n")
+        timer.toc()
+        log_str = '''{}, num={},Speed: {:.3f}s/image, Remain: {}'''.format(
+                        datetime.datetime.now().strftime('%m-%d %H:%M:%S'),
+                        i,
+                        timer.average_time,
+                        timer.remain(i, num))
+        print(log_str)
+        break
+        

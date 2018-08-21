@@ -30,7 +30,7 @@ class DAPNet(object):
             net = slim.dropout(net, keep_prob, is_training=is_training,
                        scope='dropout_6')
             score = slim.fully_connected(net, len(self.attributes[0]), activation_fn=None,
-                                  scope='fc_7')
+                                  scope='score')
             return score
 
     def accuary(self,batch_y,score):

@@ -8,14 +8,7 @@ from timer import Timer
 import datetime
 
 
-attributes=[]
-classes=[]
-attribute_txt=os.path.join(cfg.DATA_PATH,"attributes_per_class.txt")
-with open(attribute_txt,'r') as f:
-    for x in f.readlines():
-        classes.append(x.strip().split()[0])
-        attributes.append([float(y) for y in x.strip().split()[1:]])
-print(len(classes),len(attributes))
+print(len(cfg.CLASSES),len(cfg.ATTRIBUTES))
 
 def train(data_path,logs_dir):
     timer = Timer()
@@ -27,7 +20,7 @@ def train(data_path,logs_dir):
     y = tf.placeholder(tf.float32, shape=[None,30],name="output")
     keep_prob=tf.placeholder(tf.float32,name="keep_prob")
     
-    model = net.DAPNet(attributes,classes)
+    model = net.DAPNet(cfg.ATTRIBUTES,cfg.CLASSES)
     logits = model.inference(x)
     loss = model.loss(y,logits)
     acc = model.accuary(y,logits)
