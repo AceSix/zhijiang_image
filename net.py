@@ -18,9 +18,10 @@ class DAPNet(object):
         DAP网络结构
         输出属性空间
         """
-        with slim.arg_scope([slim.conv2d],padding="SAME",
+        with slim.arg_scope([slim.conv2d, slim.fully_connected],
         weights_initializer=tf.truncated_normal_initializer(stddev=0.01),
-        weights_regularizer=slim.l2_regularizer(0.0005)):
+        weights_regularizer=slim.l2_regularizer(0.0005),
+        activation_fn=tf.nn.relu):
             net = slim.conv2d(x,32,[5,5],scope="conv_1")
             net = slim.max_pool2d(net, [2, 2], 2, scope='pool_2')
             net = slim.conv2d(net, 64, [5, 5], scope='conv_3')
@@ -29,7 +30,7 @@ class DAPNet(object):
             net = slim.fully_connected(net, 1024, scope='fc_5')
             net = slim.dropout(net, keep_prob, is_training=is_training,
                        scope='dropout_6')
-            score = slim.fully_connected(net, len(self.attributes[0]), activation_fn=None,
+            score = slim.fully_connected(net, len(self.attributes[0]), activation_fn=tf.nn.sigmoid,
                                   scope='score')
             return score
 
