@@ -29,7 +29,6 @@ def get_files(data_path):
     label_set=np.array(list(set(data_list[:,1])))
     np.random.shuffle(label_set)
     val_label_set=label_set[:20]
-    train_label_set=label_set[20:]
     for data in data_list:
         image_path=os.path.join(data_path,"train",data[0])
         if data[1] in val_label_set:
@@ -44,9 +43,7 @@ def get_files(data_path):
                 print(data[1])
                 print(attribute_dict[data[1]])
 
-            
-    
-    return np.array(train_image_list),np.array(train_label_list),np.array(val_image_list),np.array(val_label_list),label_set
+    return np.array(train_image_list),np.array(train_label_list),np.array(val_image_list),np.array(val_label_list)
 
 def get_batch(image,label,image_size,batch_size):
     

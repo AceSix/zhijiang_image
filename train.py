@@ -1,31 +1,37 @@
-# -*- coding: utf-8 -*-
-#%%
-
 import os
 import numpy as np
 import tensorflow as tf
 import input_data
-import cnn
+import net
+import config as cfg
+from timer import Timer
+import datetime
+
+
+attributes=[]
+classes=[]
+attribute_txt=os.path.join(cfg.DATA_PATH,"attributes_per_class.txt")
+with open(attribute_txt,'r') as f:
+    for x in f.readlines():
+        classes.append(x.strip().split()[0])
+        attributes.append([float(y) for y in x.strip().split()[1:]])
+print(len(classes),len(attributes))
 
 def train(data_path,logs_dir):
-    image_size = 64  # resize the image, if the input image is too large, training will be very slow.
-    batch_size = 32
-    max_step = 200 # with current parameters, it is suggested to use MAX_STEP>10k
-    learning_rate = 0.0001 # with current parameters, it is suggested to use learning rate<0.0001
-    
-    train_image_list,train_label_list,test_image_list,test_label_list,label_set = input_data.get_files(data_path)
-    train_image_batch,train_label_batch = input_data.get_batch(train_image_list,train_label_list,image_size,batch_size)
-    test_image_batch,test_label_batch = input_data.get_batch(test_image_list,test_label_list,image_size,batch_size)
-
-    x = tf.placeholder(tf.float32, shape=[None,image_size,image_size,3],name="input")
+    timer = Timer()
+    train_image_list,train_label_list,val_image_list,val_label_list = input_data.get_files(data_path)
+    print("训练数据有%d,验证数据有%d" % (len(train_image_list),len(val_image_list)))
+    train_image_batch,train_label_batch = input_data.get_batch(train_image_list,train_label_list,cfg.IMAGE_SIZE,cfg.BATCH_SIZE)
+    test_image_batch,test_label_batch = input_data.get_batch(val_image_list,val_label_list,cfg.IMAGE_SIZE,cfg.BATCH_SIZE)
+    x = tf.placeholder(tf.float32, shape=[None,cfg.IMAGE_SIZE,cfg.IMAGE_SIZE,3],name="input")
     y = tf.placeholder(tf.float32, shape=[None,30],name="output")
     keep_prob=tf.placeholder(tf.float32,name="keep_prob")
     
-    model = cnn.CNN(dropout_keep_prob=keep_prob)
-    logits = model.lenet_inference(x)
-    loss = model.loss(logits, y)
-    # acc = model.evaluation(logits, y)
-    train_op = model.optimize(learning_rate)
+    model = net.DAPNet(attributes,classes)
+    logits = model.inference(x)
+    loss = model.loss(y,logits)
+    acc = model.accuary(y,logits)
+    train_op = model.optimize(cfg.LEARNING_RATE)
     
     summary_op = tf.summary.merge_all()
     
@@ -41,24 +47,34 @@ def train(data_path,logs_dir):
         threads = tf.train.start_queue_runners(sess=sess, coord=coord)
         
         try:
-            for step in np.arange(max_step):
+            for step in np.arange(cfg.MAX_ITER):
                 if coord.should_stop():
                     break
                 tra_images,tra_labels = sess.run([train_image_batch, train_label_batch])
+                val_images, val_labels = sess.run([test_image_batch, test_label_batch])
                 sess.run(train_op,feed_dict={x:tra_images, y:tra_labels,keep_prob:0.5})
                 if step % 50==0:
-                    tra_loss = sess.run(loss,feed_dict={x:tra_images, y:tra_labels,keep_prob:1.0})
-                    summary_str = sess.run(summary_op,feed_dict={x:tra_images, y:tra_labels,keep_prob:1.0})
+                    timer.tic()
+                    tra_acc,tra_loss,summary_str = sess.run([acc,loss,summary_op],feed_dict={x:tra_images, y:tra_labels,keep_prob:1.0})
                     train_writer.add_summary(summary_str, step)
 
-                    test_images, test_labels = sess.run([test_image_batch, test_label_batch])
-                    test_loss = sess.run(loss,feed_dict={x:test_images, y:test_labels,keep_prob:1.0})
-                    summary_str = sess.run(summary_op, feed_dict={x:test_images, y:test_labels,keep_prob:1.0})
-                    test_writer.add_summary(summary_str, step) 
-                    print('Step %d, train_loss = %.2f,test_loss=%.2f' 
-                    %(step, tra_loss,test_loss))
+                    val_acc,val_loss,summary_str = sess.run([acc,loss,summary_op],feed_dict={x:val_images, y:val_labels,keep_prob:1.0})
+                    test_writer.add_summary(summary_str, step)
+                    timer.toc()
+                    log_str = '''{}, Step={},train_loss={:5.3f},train_acc={:5.3f},val_loss={:5.3f},val_acc={:5.3f}
+                    Speed: {:.3f}s/iter, Remain: {}'''.format(
+                        datetime.datetime.now().strftime('%m-%d %H:%M:%S'),
+                        int(step),
+                        tra_loss,
+                        tra_acc,
+                        val_loss,
+                        val_acc,
+                        timer.average_time,
+                        timer.remain(step, cfg.MAX_ITER))
+                    print(log_str)
+
             model_path=os.path.join(logs_dir+'model/', 'model.ckpt')
-            saver.save(sess,model_path,global_step=max_step)
+            saver.save(sess,model_path,global_step=cfg.MAX_ITER)
         except tf.errors.OutOfRangeError:
             print('Done training -- epoch limit reached')
         finally:
@@ -68,6 +84,6 @@ def train(data_path,logs_dir):
         coord.join(threads)
         
 if __name__=="__main__":
-    data_path="./DatasetA"
+    data_path="./DatasetA_train_20180813"
     logs_dir="./logs"
     train(data_path,logs_dir)

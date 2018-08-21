@@ -19,3 +19,4 @@
 ## 解题方案
 
 ### 1.属性列表作为output测试
+- zero-shot learning(ZSL)

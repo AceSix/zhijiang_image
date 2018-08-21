@@ -1,8 +1,9 @@
 # data
-DatasetA/
-DatasetB/
+DatasetA_test_20180813
+DatasetA_train_20180813
 logs/
 .DS_Store
+.vscode/
 
 
 # Byte-compiled / optimized / DLL files
