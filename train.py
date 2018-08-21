@@ -53,7 +53,7 @@ def train(data_path,logs_dir):
                 tra_images,tra_labels = sess.run([train_image_batch, train_label_batch])
                 val_images, val_labels = sess.run([test_image_batch, test_label_batch])
                 sess.run(train_op,feed_dict={x:tra_images, y:tra_labels,keep_prob:0.5})
-                if step % 50==0:
+                if step % cfg.SUMMARY_ITER==0:
                     timer.tic()
                     tra_acc,tra_loss,summary_str = sess.run([acc,loss,summary_op],feed_dict={x:tra_images, y:tra_labels,keep_prob:1.0})
                     train_writer.add_summary(summary_str, step)
@@ -61,8 +61,7 @@ def train(data_path,logs_dir):
                     val_acc,val_loss,summary_str = sess.run([acc,loss,summary_op],feed_dict={x:val_images, y:val_labels,keep_prob:1.0})
                     test_writer.add_summary(summary_str, step)
                     timer.toc()
-                    log_str = '''{}, Step={},train_loss={:5.3f},train_acc={:5.3f},val_loss={:5.3f},val_acc={:5.3f}
-                    Speed: {:.3f}s/iter, Remain: {}'''.format(
+                    log_str = '''{}, Step={},train_loss={:5.3f},train_acc={:5.3f},val_loss={:5.3f},val_acc={:5.3f} -- Speed: {:.3f}s/iter, Remain: {}'''.format(
                         datetime.datetime.now().strftime('%m-%d %H:%M:%S'),
                         int(step),
                         tra_loss,
@@ -73,7 +72,7 @@ def train(data_path,logs_dir):
                         timer.remain(step, cfg.MAX_ITER))
                     print(log_str)
 
-            model_path=os.path.join(logs_dir+'model/', 'model.ckpt')
+            model_path=os.path.join(logs_dir+'/model/', 'model.ckpt')
             saver.save(sess,model_path,global_step=cfg.MAX_ITER)
         except tf.errors.OutOfRangeError:
             print('Done training -- epoch limit reached')
