@@ -18,10 +18,17 @@ input_x=graph.get_tensor_by_name("input:0")
 keep_prob=graph.get_tensor_by_name("keep_prob:0")
 output=graph.get_tensor_by_name("score/BiasAdd:0")
 
+def prewhiten(x):
+    mean = np.mean(x)
+    std = np.std(x)
+    std_adj = np.maximum(std, 1.0/np.sqrt(x.size))
+    y = np.multiply(np.subtract(x, mean), 1/std_adj)
+    return y
 def predict(image,sess):
     global output
     image=cv2.imread(image)
     image = image[:, :, (2, 1, 0)]
+    image = prewhiten(image)
     image=cv2.resize(image, (cfg.IMAGE_SIZE, cfg.IMAGE_SIZE), interpolation=cv2.INTER_CUBIC)
     image=np.reshape(image,[-1,cfg.IMAGE_SIZE,cfg.IMAGE_SIZE,3])
 
@@ -52,4 +59,3 @@ with open(test_txt,'r') as f:
                         timer.remain(i, num))
         print(log_str)
         break
-        
